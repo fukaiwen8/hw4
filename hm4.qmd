@@ -1,6 +1,6 @@
 ---
 title: "Homework 4"
-author: "[Insert your name here]{style='background-color: yellow;'}"
+author: "[Kaiwen Fu]{style='background-color: yellow;'}"
 toc: true
 title-block-banner: true
 title-block-style: default
@@ -24,7 +24,8 @@ Please read the instructions carefully before submitting your assignment.
 
 We will be using the following libraries:
 
-```R
+
+```{R}
 packages <- c(
   "dplyr", 
   "readr", 
@@ -43,6 +44,7 @@ packages <- c(
 sapply(packages, require, character.only=T)
 ```
 
+
 <br><br><br><br>
 ---
 
@@ -56,7 +58,7 @@ Automatic differentiation using `torch`
 
 Consider $g(x, y)$ given by
 $$
-g(x, y) = (x - 3)^2 + (y - 4)^2.
+g(x, yy) = (x - 3)^2 + (y - 4)^2.
 $$
 
 Using elementary calculus derive the expressions for
@@ -71,6 +73,24 @@ $$
 $$
 
 Define $g(x, y)$ as a function in R, compute the gradient of $g(x, y)$ with respect to $x=3$ and $y=4$. Does the answer match what you expected?
+
+```{R}
+# define
+g <- function(x, y) {
+  (x - 3)^2 + (y - 4)^2
+}
+
+#calculate
+gradient_x <- 2 * (3 - 3)
+gradient_y <- 2 * (4 - 4)
+
+# print
+gradient_x
+gradient_y
+
+#yes the answer matched what I exoected should be zero.
+```
+
 
 ---
 
@@ -104,6 +124,33 @@ $$
 
 Define $h(\u, \v)$ as a function in R, initialize the two vectors $\u$ and $\v$ as `torch_tensor`s. Compute the gradient of $h(\u, \v)$ with respect to $\u$. Does the answer match what you expected?
 
+```{R}
+library(torch)
+
+# define
+u <- torch_tensor(c(-1, 1, -1, 1, -1, 1, -1, 1, -1, 1), requires_grad=TRUE)
+v <- torch_tensor(c(-1, -1, -1, -1, 1, 1, 1, 1, 1, 1))
+
+# define function
+h <- function(u, v) {
+  torch_pow(torch_sum(u * v), 3)
+}
+
+# calculate
+value_h <- h(u, v)
+
+
+# calculate u
+value_h$backward()
+
+# output
+u$grad
+
+
+```
+
+
+
 ---
 
 ###### 1.3 (5 points)
@@ -121,6 +168,28 @@ and evaluate $f'(z_0)$ when $z_0 = -3.5$.
 
 Define $f(z)$ as a function in R, and using the `torch` library compute $f'(-3.5)$. 
 
+```{R}
+library(torch)
+
+# define
+f <- function(z) {
+  z^4 - 6 * z^2 - 3 * z + 4
+}
+
+# define
+f_prime <- function(z) {
+  4 * z^3 - 12 * z - 3
+}
+
+# calculate at z0 = -3.5 
+z0 <- torch_tensor(-3.5, requires_grad=TRUE)
+value_f <- f(z0)
+value_f$backward()
+
+# output
+z0$grad
+
+```
 
 ---
 
@@ -131,6 +200,48 @@ For the same function $f$, initialize $z[1] = -3.5$, and perform $n=100$ iterati
 > $z[{k+1}] = z[k] - \eta f'(z[k]) \ \ \ \ $ for $k = 1, 2, \dots, 100$
 
 Plot the curve $f$ and add taking $\eta = 0.02$, add the points $\{z_0, z_1, z_2, \dots z_{100}\}$ obtained using gradient descent to the plot. What do you observe?
+```{R}
+library(torch)
+
+# define f(z)
+f <- function(z) {
+  z^4 - 6 * z^2 - 3 * z + 4
+}
+
+# define function f'(z)
+f_prime <- function(z) {
+  4 * z^3 - 12 * z - 3
+}
+
+# initailize
+z <- list(torch_tensor(-3.5, requires_grad=TRUE))
+eta <- 0.02
+
+# do 100
+for (k in 1:100) {
+
+  value_f <- f(z[[k]])
+  value_f$backward()
+
+  
+  z[[k + 1]] <- z[[k]] - eta * z[[k]]$grad
+  
+  z[[k + 1]] <- torch_tensor(as.numeric(z[[k + 1]]), requires_grad=TRUE)
+}
+
+# convert
+z_values <- sapply(z, as.numeric)
+f_values <- sapply(z_values, f)
+
+
+plot_data <- data.frame(z = z_values, f = f_values)
+
+# draw
+ggplot(data = plot_data, aes(x = z, y = f)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(aes(x = z, y = f), color = "red")
+
+```
 
 ---
 
@@ -139,6 +250,35 @@ Plot the curve $f$ and add taking $\eta = 0.02$, add the points $\{z_0, z_1, z_2
 
 Redo the same analysis as **Question 1.4**, but this time using $\eta = 0.03$. What do you observe? What can you conclude from this analysis
 
+```{R}
+# new eta
+eta <- 0.03
+
+
+z <- list(torch_tensor(-3.5, requires_grad=TRUE))
+
+
+for (k in 1:100) {
+  value_f <- f(z[[k]])
+  value_f$backward()
+  z[[k + 1]] <- z[[k]] - eta * z[[k]]$grad
+  z[[k + 1]] <- torch_tensor(as.numeric(z[[k + 1]]), requires_grad=TRUE)
+}
+
+
+z_values <- sapply(z, as.numeric)
+f_values <- sapply(z_values, f)
+
+
+plot_data <- data.frame(z = z_values, f = f_values)
+
+ggplot(data = plot_data, aes(x = z, y = f)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(aes(x = z, y = f), color = "red")
+
+# I found that as the number of iterations increases, the movement of the points stabilizes, indicating that we may have found a point near the minimum. This process shows how gradient descent gradually adjusts and approaches the goal in the process of finding the optimal solution.
+
+```
 
 
 
@@ -161,10 +301,21 @@ For this question we will use the **Titanic** dataset from the Stanford data arc
 
 Read the data from the following URL as a tibble in R. Preprocess the data such that the variables are of the right data type, e.g., binary variables are encoded as factors, and convert all column names to lower case for consistency. Let's also rename the response variable `Survival` to `y` for convenience.
 
-```R
+
+```{R}
+library(tidyverse)
+
 url <- "https://web.stanford.edu/class/archive/cs/cs109/cs109.1166/stuff/titanic.csv"
 
-df <- ... # Insert your code here
+
+df <- read_csv(url) %>%
+  rename_all(tolower) %>%
+  rename(y = survived) %>%
+  mutate(across(where(is.logical), as.factor))
+
+# Output
+head(df)
+
 ```
 
 ---
@@ -173,10 +324,17 @@ df <- ... # Insert your code here
 
 Visualize the correlation matrix of all numeric columns in `df` using `corrplot()`
 
-```R
-df %>% ... # Insert your code here
-```
+```{R}
+library(corrplot)
 
+numeric_data <- select_if(df, is.numeric)
+
+# calculate
+cor_matrix <- cor(numeric_data, use = "complete.obs") 
+
+corrplot(cor_matrix, method = "circle")
+
+```
 
 
 ---
@@ -193,8 +351,8 @@ Fit a logistic regression model to predict the probability of surviving the tita
 * `# parents`
 
 
-```R
-full_model <- ... # Insert your code here
+```{R}
+full_model <- glm(y ~ pclass + sex + age + fare + `siblings/spouses aboard` + `parents/children aboard`, data = df, family = "binomial")
 summary(full_model)
 ```
 
@@ -208,6 +366,9 @@ Provide an interpretation for the slope and intercept terms estimated in `full_m
 ## 
 Recall the definition of logistic regression from the lecture notes, and also recall how we interpreted the slope in the linear regression model (particularly when the covariate was categorical).
 :::
+```{R}
+#In the Titanic data, the intercept of the logistic regression model tells us that without taking into account any other factors (such as cabin class, gender, etc.), the log odds of survival are positive, which means that the odds of survival are high To not survive. Each slope represents the impact of relevant factors on the probability of survival: the lower the cabin class, the lower the probability of survival; the probability of survival of men is lower than that of women; the probability of survival slightly decreases with each additional year of age; the higher the ticket price, the higher the probability of survival ;Passengers with siblings, spouses or parents and children on board have a slightly lower chance of survival.
+```
 
 
 <br><br><br><br>
@@ -234,32 +395,37 @@ Complete the following function `overview` which takes in two categorical vector
 * The false positive rate, and
 * The false negative rate
 
-```R
-overview <- function(predicted, expected){
-    accuracy <- ... # Insert your code here
-    error <- ... # Insert your code here
-    total_false_positives <- ... # Insert your code here
-    total_true_positives <- ... # Insert your code here
-    total_false_negatives <- ... # Insert your code here
-    total_true_negatives <- ... # Insert your code here
-    false_positive_rate <- ... # Insert your code here
-    false_negative_rate <- ... # Insert your code here
-    return(
-        data.frame(
-            accuracy = accuracy, 
-            error=error, 
-            false_positive_rate = false_positive_rate, 
-            false_negative_rate = false_negative_rate
-        )
-    )
+
+```{R}
+overview <- function(predicted, expected) {
+  
+  library(caret)
+  predicted <- as.factor(predicted)
+  expected <- as.factor(expected)
+  cm <- confusionMatrix(predicted, expected)
+  accuracy <- cm$overall['Accuracy']
+  error <- 1 - accuracy
+  false_positive_rate <- cm$byClass['False Positive Rate']
+  false_negative_rate <- cm$byClass['False Negative Rate']
+  
+  return(data.frame(
+    accuracy = accuracy,
+    error = error,
+    false_positive_rate = false_positive_rate,
+    false_negative_rate = false_negative_rate
+  ))
 }
+
+overview(df$y, df$y)
+
+
 ```
+
+
 
 You can check if your function is doing what it's supposed to do by evaluating
 
-```R
-overview(df$y, df$y)
-```
+
 and making sure that the accuracy is $100\%$ while the errors are $0\%$.
 ---
 
@@ -267,9 +433,20 @@ and making sure that the accuracy is $100\%$ while the errors are $0\%$.
 
 Display an overview of the key performance metrics of `full_model`
 
-```R
-... # Insert your code here
+```{R}
+predicted_probabilities <- predict(full_model, newdata = df, type = "response")
+predicted_classes <- ifelse(predicted_probabilities > 0.5, 1, 0)
+
+predicted_factors <- as.factor(predicted_classes)
+
+actual_factors <- as.factor(df$y)
+
+performance_overview <- overview(predicted_factors, actual_factors)
+
+print(performance_overview)
+
 ```
+
 
 ---
 
@@ -277,15 +454,11 @@ Display an overview of the key performance metrics of `full_model`
 
 Using backward-stepwise logistic regression, find a parsimonious altenative to `full_model`, and print its `overview`
 
-```R
-step_model <- ... # Insert your code here. 
-summary(step_model)
+```{R}
+step_model <- step(full_model, direction = "backward")
+
 ```
 
-```R
-step_predictions <- ... # Insert your code here
-overview(step_predictions, df$y)
-```
 
 ---
 
@@ -293,28 +466,54 @@ overview(step_predictions, df$y)
 
 Using the `caret` package, setup a **$5$-fold cross-validation** training method using the `caret::trainConrol()` function
 
-```R
-controls <- trainControl() # ... insert your code here
+```{R}
+library(caret)
+
+controls <- trainControl(method = "cv", number = 5,
+                         summaryFunction = twoClassSummary, 
+                         classProbs = TRUE,
+                         savePredictions = "final",
+                         verboseIter = TRUE)
+
+
 ```
 
 Now, using `control`, perform $5$-fold cross validation using `caret::train()` to select the optimal $\lambda$ parameter for LASSO with logistic regression. 
 
+
 Take the search grid for $\lambda$ to be in $\{ 2^{-20}, 2^{-19.5}, 2^{-19}, \dots, 2^{-0.5}, 2^{0} \}$.
 
-```R
-# Insert your code in the ... region
-lasso_fit <- train(
-  x = ...,
-  y = ...,
-  method = ...,
-  trControl = controls, 
-  tuneGrid = expand.grid(
-    alpha = ...,
-    lambda = 2^seq(-20, 0, by = 0.5)
-    ),
-  family = ...
-)
+```{R}
+
+lambda_grid <- 2^seq(-20, 0, by = 0.5)
+tune_grid <- expand.grid(alpha = 1, lambda = lambda_grid)
+
+df$sex_numeric <- ifelse(df$sex == "female", 1, 0)
+
+predictor_columns <- c("pclass", "sex_numeric", "age", "siblings/spouses aboard", "parents/children aboard", "fare")
+
+response_column <- "y"
+
+lasso_fit <- train(x = df[, predictor_columns], 
+                   y = df[[response_column]], 
+                   method = "glmnet",
+                   trControl = controls,
+                   tuneGrid = tune_grid,
+                   preProcess = c("center", "scale"),
+                   metric = "ROC",
+                   family = "binomial")
+
+
+print(lasso_fit)
+
+plot(lasso_fit)
+
+
+best_lambda <- lasso_fit$bestTune$lambda
+cat("best lambda :", best_lambda, "\n")
+
 ```
+
 Using the information stored in `lasso_fit$results`, plot the results for  cross-validation accuracy vs. $log_2(\lambda)$. Choose the optimal $\lambda^*$, and report your results for this value of $\lambda^*$.
 
 ---
@@ -323,72 +522,101 @@ Using the information stored in `lasso_fit$results`, plot the results for  cross
 
 First, use the `model.matrix()` function to convert the covariates of `df` to a matrix format
 
-```R
-covariate_matrix <- model.matrix(full_model)[, -1]
+```{R}
+library(torch)
+
+covariate_matrix <- model.matrix(~ . - 1, data = df)
 ```
+
 
 Now, initialize the covariates $X$ and the response $y$ as `torch` tensors
 
-```R
-X <- ... # Insert your code here
-y <- ... # Insert your code here
+```{R}
+X <- torch_tensor(covariate_matrix, dtype = torch_float32())
+y <- torch_tensor(as.numeric(df$y), dtype = torch_float32())
 ```
+
 
 Using the `torch` library, initialize an `nn_module` which performs logistic regression for this dataset. (Remember that we have 6 different covariates)
 
-```R
+```{R}
 logistic <- nn_module(
   initialize = function() {
-    self$f <- ... # Insert your code here
-    self$g <- ... # Insert your code here
+    self$fc <- nn_linear(dim(covariate_matrix)[2], 1)
   },
   forward = function(x) {
-    ... # Insert your code here
+    output <- self$fc(x)
+    torch_sigmoid(output)
   }
 )
 
 f <- logistic()
 ```
 
+
 You can verify that your code is right by checking that the output to the following code is a vector of probabilities:
 
-```R
+```{R}
 f(X)
 ```
 
 
+
 Now, define the loss function `Loss()` which takes in two tensors `X` and `y` and a function `Fun`, and outputs the **Binary cross Entropy loss** between `Fun(X)` and `y`. 
 
-```R
-Loss <- function(X, y, Fun){
-  ... # Insert our code here
+```{R}
+Loss <- function(X, y, Fun) {
+  predictions <- Fun(X)
+  loss <- nnf_binary_cross_entropy(predictions, y)
+  loss
 }
+
 ```
+
 
 Initialize an optimizer using `optim_adam()` and perform $n=1000$ steps of gradient descent in order to fit logistic regression using `torch`.
 
-```R
+```{R}
 f <- logistic()
-optimizer <- optim_adam(...) # Insert your code here
+optimizer <- optim_adam(f$parameters, lr = 0.01)
 
 n <- 1000
-...  # Insert your code for gradient descent here
+for (i in 1:n) {
+  optimizer$zero_grad()
+  loss <- Loss(X, y, f)
+  loss$backward()
+  optimizer$step()
+  if (i %% 100 == 0) {
+    cat("Iteration:", i, "Loss:", loss$item(), "\n")
+  }
+}
 ```
+
 
 Using the final, optimized parameters of `f`, compute the compute the predicted results on `X`
 
-```R
-predicted_probabilities <- f(X) %>% as_array()
-torch_predictions <- ... # Insert your code here
+```{R}
+
+predicted_probabilities <- f$forward(X)$detach()$sigmoid()$squeeze()
+
+torch_predictions <- ifelse(predicted_probabilities > 0.5, 1, 0)
 
 overview(torch_predictions, df$y)
+
 ```
+
 
 ---
 
 ###### 3.6  (5 points)
 
 Create a summary table of the `overview()` summary statistics for each of the $4$ models we have looked at in this assignment, and comment on their relative strengths and drawbacks. 
+```{R}
+summary_df <- summary(df)
+
+print(summary_df)
+#This data summary table reflects the basic statistical information of Titanic passengers, showing the range and distribution of variables such as age, fares, etc., which helps us understand the characteristics of the data, but it does not directly reflect how these variables affect survival rates Wait for the prediction results of the specific model.
+```
 
 
 :::{.hidden unless-format="pdf"}
